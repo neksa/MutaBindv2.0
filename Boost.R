@@ -1,12 +1,17 @@
+#!/usr/bin/env Rscript
+
 library(doParallel)
 library(caret)
 library(xgboost)
 
 set.seed(123)
 
-f <- read.table(file="SkempiS_WithModelFeatures.txt", header = TRUE, sep = '\t')
+f <- read.table(file="SkempiS_4191.txt", header = TRUE, sep = '\t')
 rownames(f) <- paste(f$PDB.id,f$Partner1,f$Partner2,f$Mutated.Chain,f$Mutation,f$label_dataset,sep = '_')                # for single mutation
-c(dim(f)[1],length(unique(f$PDB.id)))
+# c(dim(f)[1],length(unique(f$PDB.id)))
+
+# f <- f[f$label_dataset == 'forward',]
+
 
 data = f[, c("DDGexp", "dE_vdw_wt", "dE_vdw_mut", "dG_solv_mut", "dG_solv_wt", "dPro_mut", "dPro_wt", "SA_com_wt", "SA_part_wt", "CS", "ddG_fold")]
 # x <- as.matrix(data, rownames.force=NA)
@@ -38,13 +43,14 @@ xgb.grid <- expand.grid(nrounds = 500,
 #)
 #stopCluster(cl)
 
-xgb.best <- list(max_depth = 8, eta = 0.01, gamma = 0.2, colsample_bytree = 0.8, min_child_weight = 1, subsample = 1)
+# xgb.best <- list(max_depth = 8, eta = 0.01, gamma = 0.2, colsample_bytree = 0.8, min_child_weight = 1, subsample = 1)
+xgb.best <- list(max_depth = 4, eta = 0.005, gamma = 0.4, colsample_bytree = 0.3, min_child_weight = 3, subsample = 0.4)
 
-intrain <- createDataPartition(y=data$DDGexp, p=0.9, list=FALSE, groups=5)
+intrain <- createDataPartition(y=data$DDGexp, p=0.9, list=FALSE, groups=4)
 
 train_data <- xgb.DMatrix(data=as.matrix(data[intrain, -which(names(data)=="DDGexp")]), label=data[intrain, ]$DDGexp)
 test_data <- xgb.DMatrix(data=as.matrix(data[-intrain, -which(names(data)=="DDGexp")]), label=data[-intrain, ]$DDGexp)
-xgb_tune <- xgb.train(params=xgb.best, data=train_data, nrounds=500)
+xgb_tune <- xgb.train(params=xgb.best, data=train_data, nrounds=100)
 
 # performance on training set
 prediction <- predict(xgb_tune, train_data)
